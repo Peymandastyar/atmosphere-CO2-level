@@ -1,0 +1,79 @@
+import numpy as np np.set_printoptions(precision=3)
+import matplotlib.pyplot as plt
+%matplotlib inline
+import seaborn as sns sns.set(rc={"figure.dpi":100, "savefig.dpi":300}) sns.set_context("notebook") sns.set_style("ticks")
+import scipy
+import scipy.stats as st
+import urllib.request
+import os
+
+url = "https://github.com/PredictiveScienceLab/data-analytics-se/raw/master/lecturebook/data/mauna_loa_co2.txt"
+download(url)
+data = np.loadtxt('mauna_loa_co2.txt')
+#load data
+t = data[:, 2][:, None] #time (in decimal dates)
+y = data[:, 4][:, None] #CO2 level (mole fraction in dry air, micromol/ mol, abbreviated as ppm)
+t_s = t - t.min()
+y_s = (y - y.min()) / (y.max() - y.min())
+
+# The overall trend
+k1 = GPy.kern.RBF(1)
+k1.lengthscale = 40
+k1.variance = 1.0
+# The seasonal variation
+k2 = GPy.kern.StdPeriodic(1)
+k2.period = 1.0
+k2.lengthscale = 0.1
+# The smaller fluctuations
+k3 = GPy.kern.RBF(1)
+k3.lengthscale = 0.1
+k3.variance = 0.01
+k = k1 * (k2 + k3)
+# The mean function at xs
+ms = np.zeros(tss.shape)
+# Find the covariance matrix. You need to add a small number
+# to the diagonal to ensure numerical stability
+nugget = 1e-6
+K = k.K(tss) + nugget * np.eye(tss.shape[0])
+# A multivariate normal that can be used to sample the function values F = st.multivariate_normal(mean=ms.flatten(), cov=K)
+# Take the function samples
+f_samples = F.rvs(size=2)
+# Plot the samples
+fig, ax = plt.subplots(dpi=100)
+ax.plot(tss.flatten(), f_samples.T, lw=1);
+k2.period.constrain_fixed(1)
+k = k1 * (k2 + k3)
+model = GPy.models.GPRegression(t_s, y_s, k) # We now that the period should be one model.optimize_restarts(messages=True);
+#plot the results
+ts_scaled = np.linspace(0, t_s.max() + 10, 300)[:, None] ys, vs = model.predict(ts_scaled)
+ls = ys - 1.96 * np.sqrt(vs)
+us = ys + 1.96 * np.sqrt(vs)
+fig, ax = plt.subplots(1, figsize = (15, 10), dpi=100)
+ax.plot(ts_scaled, ys, color='blue', label='Posterior mean')
+ax.fill_between(ts_scaled.flatten(), ls.flatten(), us.flatten(), color=
+'blue', alpha=0.25)
+ax.plot(t_s, y_s, '.', label='Scaled observed data')
+ax.set_xlabel('$t_s$ (Scaled year)')
+ax.set_ylabel('$y_s$ (Scaled CO2 level)');
+
+
+# this part plots samples from the posterior Gaussian process
+
+ts_scaled = np.linspace(t_s.max(), t_s.max() + 10, 300)[:, None]
+#predicting the mean and deviation
+ys, vs = model.predict(ts_scaled)
+ls = ys - 1.96 * np.sqrt(vs)
+us = ys + 1.96 * np.sqrt(vs)
+fig, ax = plt.subplots(dpi=100)
+ax.plot(ts_scaled, ys, color='blue', label='Posterior mean')
+ax.plot(ts_scaled, model.posterior_samples_f(ts_scaled, size=5)[:,0,:],
+color='r', lw=0.5)
+ax.fill_between(ts_scaled.flatten(), ls.flatten(), us.flatten(), color=
+'blue', alpha=0.25)
+ax.set_xlabel('$t_s$ (Year)')
+ax.set_ylabel('$y_s$ ( CO2 level)');
+
+
+
+
+
